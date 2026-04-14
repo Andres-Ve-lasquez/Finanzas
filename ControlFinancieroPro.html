@@ -1167,12 +1167,14 @@ function ensureLocalhostOrigin() {
 
 function renderOAuthHelp() {
   const origin = getOAuthOrigin();
+  const path = `${origin}${window.location.pathname || '/'}`;
   return `
     <p style="margin-top:10px">
-      En Google Cloud autoriza exactamente este origen:
+      En Google Cloud, agrega esto en <b style="color:var(--text)">Orígenes autorizados de JavaScript</b>:
       <b style="color:var(--text);display:block;margin-top:5px;font-family:monospace">${origin}</b>
-      Si aparece redirect_uri_mismatch, agrega también el mismo valor en
-      <b style="color:var(--text)">URIs de redireccionamiento autorizados</b>.
+      Y en <b style="color:var(--text)">URIs de redireccionamiento autorizados</b> agrega:
+      <b style="color:var(--text);display:block;margin-top:5px;font-family:monospace">${origin}</b>
+      <b style="color:var(--text);display:block;margin-top:5px;font-family:monospace">${path}</b>
     </p>`;
 }
 
