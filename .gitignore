@@ -1,0 +1,4 @@
+.sfdx/
+.vercel/
+node_modules/
+*.log
