@@ -38,6 +38,7 @@ header{padding:16px 32px;display:flex;align-items:center;justify-content:space-b
 .sync-status{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px;}
 .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--muted2);}
 .sync-dot.online{background:var(--pos);box-shadow:0 0 6px var(--pos);}
+.sync-dot.saved{background:var(--accent);}
 .alert-bell{position:relative;cursor:pointer;width:36px;height:36px;background:var(--surface2);
   border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;
   font-size:1rem;transition:all .2s;}
@@ -403,13 +404,33 @@ tr:hover td{background:rgba(255,255,255,.02);}
   </div>
 </div>
 
+<!-- MODAL LIMPIAR TODO -->
+<div class="modal-overlay" id="modalReset">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header"><span class="modal-title">🗑 Limpiar todos los datos</span>
+      <button class="modal-close" onclick="closeModal('modalReset')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:.88rem;line-height:1.6;margin-bottom:14px">
+        Esto borrará <b style="color:var(--neg)">absolutamente todo</b>: cuentas, movimientos, deudas, ahorros, recurrentes y configuración.<br><br>
+        <span style="color:var(--muted);font-size:.82rem">Si quieres conservar una copia, descarga el backup primero.</span>
+      </p>
+      <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="closeModal('modalReset');exportJSON()">⬇ Descargar backup antes</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalReset')">Cancelar</button>
+      <button class="btn btn-danger" style="background:var(--neg);color:#fff" onclick="confirmarReset()">🗑 Sí, borrar todo</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <header>
   <div class="logo"><div class="logo-dot"></div>Control<span>Pro</span></div>
   <div class="header-right">
-    <div class="sync-status"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">Sin sincronizar</span></div>
+    <div class="sync-status"><div class="sync-dot" id="saveDot"></div><span id="saveLabel">Sin guardar</span></div>
+    <div class="sync-status" style="margin-left:4px"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">Sin sincronizar</span></div>
     <div class="alert-bell" onclick="toggleAlerts()" id="alertBell">🔔<span class="alert-count" id="alertCount"></span></div>
   </div>
 </header>
@@ -785,11 +806,18 @@ tr:hover td{background:rgba(255,255,255,.02);}
         <div class="labels-grid" id="catsList"></div>
       </div>
       <div class="sep"></div>
-      <div class="row-flex">
+      <div class="row-flex" style="flex-wrap:wrap;gap:10px">
         <button class="btn btn-secondary" onclick="exportJSON()">⬇ Backup JSON</button>
         <label class="btn btn-secondary" style="cursor:pointer">⬆ Restaurar
           <input type="file" accept=".json" style="display:none" onchange="importFile(this)"></label>
-        <button class="btn btn-danger" onclick="resetAll()">🗑 Borrar todo</button>
+      </div>
+      <div class="sep"></div>
+      <div>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;line-height:1.6">
+          ⚠️ Los datos se guardan automáticamente en este navegador.<br>
+          Si cambias de dispositivo o limpias el caché, descarga un backup primero.
+        </div>
+        <button class="btn btn-danger" onclick="resetAll()" style="background:rgba(235,87,87,.12)">🗑 Limpiar todos los datos</button>
       </div>
     </div>
   </div>
@@ -934,7 +962,19 @@ function emptyData() {
 }
 
 function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(D));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(D));
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+    const el = q('saveLabel');
+    if (el) el.textContent = `Guardado ${h}:${m}:${s}`;
+    const dot = q('saveDot');
+    if (dot) { dot.className = 'sync-dot online'; clearTimeout(dot._t); dot._t = setTimeout(() => dot.className = 'sync-dot saved', 2000); }
+  } catch(e) {
+    toast('Error al guardar: almacenamiento lleno o bloqueado', 'error');
+  }
 }
 
 // Reglas de asunto = defaults + overrides del usuario
@@ -1044,7 +1084,10 @@ function importFile(input) {
 }
 
 function resetAll() {
-  if (!confirm('¿Borrar TODOS los datos? Esta acción no se puede deshacer.')) return;
+  openModal('modalReset');
+}
+
+function confirmarReset() {
   localStorage.removeItem(STORAGE_KEY);
   location.reload();
 }
@@ -3674,7 +3717,34 @@ function checkPendingRec() {
 
 
 // ── INIT ────────────────────────────────────────────────────
+
+// Detecta modo privado o localStorage bloqueado
+(function checkStorage() {
+  try {
+    const testKey = '__ls_test__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+  } catch(e) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#f7c76a;color:#000;padding:10px 20px;font-size:.82rem;z-index:9999;text-align:center;';
+    banner.textContent = '⚠️ El almacenamiento local está bloqueado (modo privado o sin permisos). Los datos no se guardarán entre sesiones.';
+    document.body.appendChild(banner);
+  }
+})();
+
 let D = loadData();
+
+// Muestra hora del último guardado si hay datos
+(function initSaveLabel() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  const el = q('saveLabel');
+  const dot = q('saveDot');
+  if (raw && el) {
+    el.textContent = 'Datos cargados ✓';
+    if (dot) dot.className = 'sync-dot saved';
+  }
+})();
+
 initFilters();
 populateSelects();
 updateRecFields();
