@@ -1,0 +1,13 @@
+{
+  "name": "ControlFinanciero Pro",
+  "short_name": "FinPro",
+  "description": "Control financiero personal: cuentas, movimientos, deudas, ahorros y sincronización Gmail.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#c8f135",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
